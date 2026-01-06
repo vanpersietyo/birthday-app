@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+logs/
+error.log
+combined.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+dev.db
+prisma/migrations/*_migration/
+
+# Testing
+coverage/
+.nyc_output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# PM2
+.pm2/
+
+# Temporary files
+tmp/
+temp/

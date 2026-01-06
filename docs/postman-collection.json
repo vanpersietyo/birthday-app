@@ -1,0 +1,855 @@
+{
+  "info": {
+    "name": "Birthday Messaging System API",
+    "description": "A comprehensive API for managing users and their birthday messages with timezone-aware scheduling.\n\n## Features\n- User management (Create, Read, Update, Delete)\n- Timezone-aware birthday scheduling\n- Automatic birthday message delivery at 9 AM local time\n- Resilient email delivery with retry logic\n\n## Quick Start\n1. Set the `baseUrl` variable to your server URL (default: http://localhost:3000)\n2. Run the \"Health Check\" request to verify the server is running\n3. Create users with POST /api/user\n4. Manage users with GET, PUT, DELETE endpoints\n\n## Notes\n- All user endpoints are prefixed with `/api`\n- Timezone must be in IANA format (e.g., America/New_York)\n- Birthday format: YYYY-MM-DD\n- Email must be unique across all users",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "birthday-messaging-system",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has success field\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has timestamp\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.timestamp).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Check if the server is running and healthy. This endpoint is useful for monitoring and load balancer health checks."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/health",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["health"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Server is running\",\n  \"timestamp\": \"2026-01-06T10:30:00.000Z\"\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Health check and server status endpoints"
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has user data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data).to.exist;",
+                  "    pm.expect(jsonData.data.id).to.exist;",
+                  "});",
+                  "",
+                  "// Save userId for subsequent requests",
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set(\"userId\", jsonData.data.id);",
+                  "    console.log(\"User ID saved: \" + jsonData.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"birthday\": \"1990-05-15\",\n  \"timezone\": \"America/New_York\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "user"]
+            },
+            "description": "Create a new user with birthday and timezone information.\n\n**Required Fields:**\n- firstName: User's first name (1-100 characters)\n- lastName: User's last name (1-100 characters)\n- email: Valid email address (must be unique)\n- birthday: Date in YYYY-MM-DD format (cannot be in the future)\n- timezone: IANA timezone (e.g., America/New_York, Australia/Melbourne, Europe/London)\n\n**Important:**\n- The system will automatically schedule birthday messages for this user\n- Messages are sent at exactly 9 AM in the user's timezone\n- Email must be unique across all users"
+          },
+          "response": [
+            {
+              "name": "Success - User in New York",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"birthday\": \"1990-05-15\",\n  \"timezone\": \"America/New_York\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user"]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"clx1a2b3c4d5e6f7g8h9i0j1k\",\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"birthday\": \"1990-05-15\",\n    \"timezone\": \"America/New_York\",\n    \"isActive\": true,\n    \"createdAt\": \"2026-01-06T10:30:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "Success - User in Melbourne",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Smith\",\n  \"email\": \"jane.smith@example.com\",\n  \"birthday\": \"1985-12-20\",\n  \"timezone\": \"Australia/Melbourne\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user"]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"clx2b3c4d5e6f7g8h9i0j1k2l\",\n    \"firstName\": \"Jane\",\n    \"lastName\": \"Smith\",\n    \"email\": \"jane.smith@example.com\",\n    \"birthday\": \"1985-12-20\",\n    \"timezone\": \"Australia/Melbourne\",\n    \"isActive\": true,\n    \"createdAt\": \"2026-01-06T10:30:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "Error - Invalid Email",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"invalid-email\",\n  \"birthday\": \"1990-05-15\",\n  \"timezone\": \"America/New_York\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user"]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": \"\\\"email\\\" must be a valid email\"\n}"
+            },
+            {
+              "name": "Error - Email Already Exists",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"birthday\": \"1990-05-15\",\n  \"timezone\": \"America/New_York\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user"]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": \"User with email john.doe@example.com already exists\"\n}"
+            },
+            {
+              "name": "Error - Invalid Timezone",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"birthday\": \"1990-05-15\",\n  \"timezone\": \"Invalid/Timezone\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user"]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": \"Invalid timezone. Use IANA timezone format (e.g., America/New_York)\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get User by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 or 404\", function () {",
+                  "    pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test(\"Response has user data\", function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.eql(true);",
+                  "        pm.expect(jsonData.data).to.exist;",
+                  "        pm.expect(jsonData.data.id).to.exist;",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "user", "{{userId}}"]
+            },
+            "description": "Retrieve a single user by their unique identifier.\n\n**Path Parameters:**\n- id: User ID (UUID format)\n\n**Response includes:**\n- All user fields\n- createdAt timestamp\n- updatedAt timestamp"
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/clx1a2b3c4d5e6f7g8h9i0j1k",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user", "clx1a2b3c4d5e6f7g8h9i0j1k"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"clx1a2b3c4d5e6f7g8h9i0j1k\",\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"birthday\": \"1990-05-15\",\n    \"timezone\": \"America/New_York\",\n    \"isActive\": true,\n    \"createdAt\": \"2026-01-06T10:30:00.000Z\",\n    \"updatedAt\": \"2026-01-06T10:30:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "Error - User Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/invalid-id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user", "invalid-id"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": \"User not found\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get All Users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has users array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            },
+            "description": "Retrieve a list of all users in the system.\n\n**Returns:**\n- Array of user objects\n- Each user includes: id, firstName, lastName, email, birthday, timezone, isActive\n- Does not include timestamps (createdAt/updatedAt)"
+          },
+          "response": [
+            {
+              "name": "Success - Multiple Users",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/users",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "users"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"clx1a2b3c4d5e6f7g8h9i0j1k\",\n      \"firstName\": \"John\",\n      \"lastName\": \"Doe\",\n      \"email\": \"john.doe@example.com\",\n      \"birthday\": \"1990-05-15\",\n      \"timezone\": \"America/New_York\",\n      \"isActive\": true\n    },\n    {\n      \"id\": \"clx2b3c4d5e6f7g8h9i0j1k2l\",\n      \"firstName\": \"Jane\",\n      \"lastName\": \"Smith\",\n      \"email\": \"jane.smith@example.com\",\n      \"birthday\": \"1985-12-20\",\n      \"timezone\": \"Australia/Melbourne\",\n      \"isActive\": true\n    },\n    {\n      \"id\": \"clx3c4d5e6f7g8h9i0j1k2l3m\",\n      \"firstName\": \"James\",\n      \"lastName\": \"Wilson\",\n      \"email\": \"james.wilson@example.com\",\n      \"birthday\": \"1992-03-10\",\n      \"timezone\": \"Europe/London\",\n      \"isActive\": false\n    }\n  ]\n}"
+            },
+            {
+              "name": "Success - Empty List",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/users",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "users"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": []\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 or 404\", function () {",
+                  "    pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test(\"Response has updated user data\", function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.eql(true);",
+                  "        pm.expect(jsonData.data).to.exist;",
+                  "        pm.expect(jsonData.data.updatedAt).to.exist;",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Jonathan\",\n  \"lastName\": \"Doe\",\n  \"timezone\": \"Europe/London\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "user", "{{userId}}"]
+            },
+            "description": "Update user information. All fields are optional - only provide the fields you want to update.\n\n**Path Parameters:**\n- id: User ID (UUID format)\n\n**Optional Fields:**\n- firstName: User's first name\n- lastName: User's last name\n- email: Email address (must be unique)\n- birthday: Date in YYYY-MM-DD format\n- timezone: IANA timezone identifier\n- isActive: Boolean (false to deactivate user)\n\n**Important:**\n- At least one field must be provided\n- If email is updated, it must be unique\n- If birthday/timezone is updated, birthday messages will be rescheduled"
+          },
+          "response": [
+            {
+              "name": "Success - Update Name",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"Jonathan\",\n  \"lastName\": \"Doe\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/clx1a2b3c4d5e6f7g8h9i0j1k",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user", "clx1a2b3c4d5e6f7g8h9i0j1k"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"clx1a2b3c4d5e6f7g8h9i0j1k\",\n    \"firstName\": \"Jonathan\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"birthday\": \"1990-05-15\",\n    \"timezone\": \"America/New_York\",\n    \"isActive\": true,\n    \"updatedAt\": \"2026-01-06T11:00:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "Success - Deactivate User",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"isActive\": false\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/clx1a2b3c4d5e6f7g8h9i0j1k",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user", "clx1a2b3c4d5e6f7g8h9i0j1k"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"clx1a2b3c4d5e6f7g8h9i0j1k\",\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"birthday\": \"1990-05-15\",\n    \"timezone\": \"America/New_York\",\n    \"isActive\": false,\n    \"updatedAt\": \"2026-01-06T11:00:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "Error - User Not Found",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"Jonathan\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/invalid-id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user", "invalid-id"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": \"User not found\"\n}"
+            },
+            {
+              "name": "Error - Email Already Exists",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"existing@example.com\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/clx1a2b3c4d5e6f7g8h9i0j1k",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user", "clx1a2b3c4d5e6f7g8h9i0j1k"]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": \"User with email existing@example.com already exists\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 or 404\", function () {",
+                  "    pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test(\"Response confirms deletion\", function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.eql(true);",
+                  "        pm.expect(jsonData.message).to.include('deleted');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "user", "{{userId}}"]
+            },
+            "description": "Permanently delete a user from the system.\n\n**Path Parameters:**\n- id: User ID (UUID format)\n\n**Warning:**\n- This action cannot be undone\n- All associated message logs will also be deleted\n- Birthday messages for this user will be cancelled"
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/clx1a2b3c4d5e6f7g8h9i0j1k",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user", "clx1a2b3c4d5e6f7g8h9i0j1k"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"User deleted successfully\"\n}"
+            },
+            {
+              "name": "Error - User Not Found",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/invalid-id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user", "invalid-id"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": \"User not found\"\n}"
+            }
+          ]
+        }
+      ],
+      "description": "User management endpoints for creating, reading, updating, and deleting users"
+    },
+    {
+      "name": "Example Workflows",
+      "item": [
+        {
+          "name": "Complete User Lifecycle",
+          "item": [
+            {
+              "name": "1. Create User",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Johnson\",\n  \"email\": \"alice.johnson@example.com\",\n  \"birthday\": \"1988-08-25\",\n  \"timezone\": \"America/Los_Angeles\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user"]
+                },
+                "description": "Step 1: Create a new user"
+              },
+              "response": []
+            },
+            {
+              "name": "2. Get User",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/{{userId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user", "{{userId}}"]
+                },
+                "description": "Step 2: Retrieve the user we just created"
+              },
+              "response": []
+            },
+            {
+              "name": "3. Update User",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"timezone\": \"America/New_York\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/{{userId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user", "{{userId}}"]
+                },
+                "description": "Step 3: Update user's timezone (e.g., user moved to a different location)"
+              },
+              "response": []
+            },
+            {
+              "name": "4. Deactivate User",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"isActive\": false\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/{{userId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user", "{{userId}}"]
+                },
+                "description": "Step 4: Deactivate user (they won't receive birthday messages)"
+              },
+              "response": []
+            },
+            {
+              "name": "5. Reactivate User",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"isActive\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/{{userId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user", "{{userId}}"]
+                },
+                "description": "Step 5: Reactivate user"
+              },
+              "response": []
+            },
+            {
+              "name": "6. Delete User",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user/{{userId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user", "{{userId}}"]
+                },
+                "description": "Step 6: Permanently delete the user"
+              },
+              "response": []
+            }
+          ],
+          "description": "A complete workflow showing the full lifecycle of a user"
+        }
+      ],
+      "description": "Example workflows demonstrating common use cases"
+    }
+  ]
+}

@@ -1,0 +1,624 @@
+openapi: 3.0.3
+info:
+  title: Birthday Messaging System API
+  description: |
+    A timezone-aware birthday messaging system that sends personalized birthday messages to users at exactly 9 AM in their local timezone.
+
+    ## Features
+    - User management (Create, Read, Update, Delete)
+    - Timezone-aware birthday scheduling
+    - Automatic birthday message delivery at 9 AM local time
+    - Resilient email delivery with retry logic and circuit breaker
+
+    ## Base URL
+    The API is served at `/api` prefix for all user endpoints.
+
+    ## Authentication
+    Currently, this API does not require authentication. In production, consider implementing JWT or OAuth 2.0.
+
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: ISC
+    url: https://opensource.org/licenses/ISC
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: http://localhost:3000/api
+    description: Local development server (with API prefix)
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Users
+    description: User management operations
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check if the server is running and healthy
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Server is running and healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Server is running
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: '2026-01-06T10:30:00.000Z'
+
+  /api/user:
+    post:
+      tags:
+        - Users
+      summary: Create a new user
+      description: |
+        Create a new user with birthday and timezone information. The system will automatically send a birthday message at 9 AM in the user's local timezone on their birthday.
+
+        **Important Notes:**
+        - Email must be unique
+        - Birthday must be in YYYY-MM-DD format
+        - Birthday cannot be in the future
+        - Timezone must be a valid IANA timezone (e.g., America/New_York, Australia/Melbourne)
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+            examples:
+              newYorkUser:
+                summary: User in New York
+                value:
+                  firstName: John
+                  lastName: Doe
+                  email: john.doe@example.com
+                  birthday: '1990-05-15'
+                  timezone: America/New_York
+              melbourneUser:
+                summary: User in Melbourne
+                value:
+                  firstName: Jane
+                  lastName: Smith
+                  email: jane.smith@example.com
+                  birthday: '1985-12-20'
+                  timezone: Australia/Melbourne
+              londonUser:
+                summary: User in London
+                value:
+                  firstName: James
+                  lastName: Wilson
+                  email: james.wilson@example.com
+                  birthday: '1992-03-10'
+                  timezone: Europe/London
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+              example:
+                success: true
+                data:
+                  id: clx1a2b3c4d5e6f7g8h9i0j1k
+                  firstName: John
+                  lastName: Doe
+                  email: john.doe@example.com
+                  birthday: '1990-05-15'
+                  timezone: America/New_York
+                  isActive: true
+                  createdAt: '2026-01-06T10:30:00.000Z'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidEmail:
+                  summary: Invalid email format
+                  value:
+                    success: false
+                    error: '"email" must be a valid email'
+                invalidBirthday:
+                  summary: Invalid birthday format
+                  value:
+                    success: false
+                    error: 'Birthday must be in YYYY-MM-DD format'
+                futureBirthday:
+                  summary: Birthday in the future
+                  value:
+                    success: false
+                    error: 'Birthday cannot be in the future'
+                invalidTimezone:
+                  summary: Invalid timezone
+                  value:
+                    success: false
+                    error: 'Invalid timezone. Use IANA timezone format (e.g., America/New_York)'
+                missingField:
+                  summary: Missing required field
+                  value:
+                    success: false
+                    error: '"firstName" is required'
+        '409':
+          description: User with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: User with email john.doe@example.com already exists
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: Internal server error
+
+  /api/user/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      description: Retrieve a single user by their unique identifier
+      operationId: getUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID (UUID format)
+          schema:
+            type: string
+            format: uuid
+          example: clx1a2b3c4d5e6f7g8h9i0j1k
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetailResponse'
+              example:
+                success: true
+                data:
+                  id: clx1a2b3c4d5e6f7g8h9i0j1k
+                  firstName: John
+                  lastName: Doe
+                  email: john.doe@example.com
+                  birthday: '1990-05-15'
+                  timezone: America/New_York
+                  isActive: true
+                  createdAt: '2026-01-06T10:30:00.000Z'
+                  updatedAt: '2026-01-06T10:30:00.000Z'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: User not found
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Users
+      summary: Update user
+      description: |
+        Update user information. All fields are optional - only provide the fields you want to update.
+
+        **Important Notes:**
+        - If email is updated, it must be unique
+        - If birthday is updated, the system will reschedule birthday messages
+        - If timezone is updated, messages will be sent at 9 AM in the new timezone
+        - Can activate/deactivate users with the `isActive` field
+      operationId: updateUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID (UUID format)
+          schema:
+            type: string
+            format: uuid
+          example: clx1a2b3c4d5e6f7g8h9i0j1k
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+            examples:
+              updateName:
+                summary: Update name only
+                value:
+                  firstName: Jonathan
+                  lastName: Doe
+              updateEmail:
+                summary: Update email only
+                value:
+                  email: jonathan.doe@example.com
+              updateBirthday:
+                summary: Update birthday and timezone
+                value:
+                  birthday: '1990-05-16'
+                  timezone: Europe/London
+              deactivateUser:
+                summary: Deactivate user
+                value:
+                  isActive: false
+              fullUpdate:
+                summary: Update all fields
+                value:
+                  firstName: Jonathan
+                  lastName: Doe
+                  email: jonathan.doe@example.com
+                  birthday: '1990-05-16'
+                  timezone: Europe/London
+                  isActive: true
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateUserResponse'
+              example:
+                success: true
+                data:
+                  id: clx1a2b3c4d5e6f7g8h9i0j1k
+                  firstName: Jonathan
+                  lastName: Doe
+                  email: jonathan.doe@example.com
+                  birthday: '1990-05-16'
+                  timezone: Europe/London
+                  isActive: true
+                  updatedAt: '2026-01-06T11:00:00.000Z'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: '"email" must be a valid email'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: User not found
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: User with email jonathan.doe@example.com already exists
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      description: |
+        Permanently delete a user from the system. This action cannot be undone.
+
+        **Warning:** This will also delete all associated message logs for this user.
+      operationId: deleteUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID (UUID format)
+          schema:
+            type: string
+            format: uuid
+          example: clx1a2b3c4d5e6f7g8h9i0j1k
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User deleted successfully
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: User not found
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/users:
+    get:
+      tags:
+        - Users
+      summary: Get all users
+      description: Retrieve a list of all users in the system
+      operationId: getAllUsers
+      responses:
+        '200':
+          description: List of all users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersListResponse'
+              example:
+                success: true
+                data:
+                  - id: clx1a2b3c4d5e6f7g8h9i0j1k
+                    firstName: John
+                    lastName: Doe
+                    email: john.doe@example.com
+                    birthday: '1990-05-15'
+                    timezone: America/New_York
+                    isActive: true
+                  - id: clx2b3c4d5e6f7g8h9i0j1k2l
+                    firstName: Jane
+                    lastName: Smith
+                    email: jane.smith@example.com
+                    birthday: '1985-12-20'
+                    timezone: Australia/Melbourne
+                    isActive: true
+                  - id: clx3c4d5e6f7g8h9i0j1k2l3m
+                    firstName: James
+                    lastName: Wilson
+                    email: james.wilson@example.com
+                    birthday: '1992-03-10'
+                    timezone: Europe/London
+                    isActive: false
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CreateUserRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+        - birthday
+        - timezone
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: User's first name
+          example: John
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: User's last name
+          example: Doe
+        email:
+          type: string
+          format: email
+          description: User's email address (must be unique)
+          example: john.doe@example.com
+        birthday:
+          type: string
+          format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+          description: User's birthday in YYYY-MM-DD format (cannot be in the future)
+          example: '1990-05-15'
+        timezone:
+          type: string
+          description: IANA timezone identifier (e.g., America/New_York, Australia/Melbourne)
+          example: America/New_York
+
+    UpdateUserRequest:
+      type: object
+      minProperties: 1
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: User's first name
+          example: Jonathan
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: User's last name
+          example: Doe
+        email:
+          type: string
+          format: email
+          description: User's email address (must be unique)
+          example: jonathan.doe@example.com
+        birthday:
+          type: string
+          format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+          description: User's birthday in YYYY-MM-DD format
+          example: '1990-05-16'
+        timezone:
+          type: string
+          description: IANA timezone identifier
+          example: Europe/London
+        isActive:
+          type: boolean
+          description: Whether the user is active (inactive users won't receive birthday messages)
+          example: true
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique user identifier
+          example: clx1a2b3c4d5e6f7g8h9i0j1k
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+        email:
+          type: string
+          format: email
+          example: john.doe@example.com
+        birthday:
+          type: string
+          format: date
+          example: '1990-05-15'
+        timezone:
+          type: string
+          example: America/New_York
+        isActive:
+          type: boolean
+          example: true
+
+    UserWithTimestamps:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            createdAt:
+              type: string
+              format: date-time
+              example: '2026-01-06T10:30:00.000Z'
+            updatedAt:
+              type: string
+              format: date-time
+              example: '2026-01-06T10:30:00.000Z'
+
+    UserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          allOf:
+            - $ref: '#/components/schemas/User'
+            - type: object
+              properties:
+                createdAt:
+                  type: string
+                  format: date-time
+                  example: '2026-01-06T10:30:00.000Z'
+
+    UserDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/UserWithTimestamps'
+
+    UpdateUserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          allOf:
+            - $ref: '#/components/schemas/User'
+            - type: object
+              properties:
+                updatedAt:
+                  type: string
+                  format: date-time
+                  example: '2026-01-06T11:00:00.000Z'
+
+    UsersListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: Error message describing what went wrong
+
+  examples:
+    CreateUserExample:
+      value:
+        firstName: John
+        lastName: Doe
+        email: john.doe@example.com
+        birthday: '1990-05-15'
+        timezone: America/New_York
+
+    UpdateUserExample:
+      value:
+        firstName: Jonathan
+        email: jonathan.doe@example.com
